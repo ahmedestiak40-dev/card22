@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorful Memory Match Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Custom CSS for a visually appealing game */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+
+        /* --- UPDATED COLOR PALETTE --- */
+        :root {
+            --primary-color: #9c27b0; /* Deep Purple */
+            --secondary-color: #ffc107; /* Amber/Gold Accent */
+            --background-color: #f3e5f5; /* Light Purple Background */
+            --card-back-color: var(--primary-color);
+            --card-back-color-dark: #6a1b9a; /* Darker Purple for Gradient */
+            --card-front-color: #ffffff;
+            --match-color: #00bcd4; /* Cyan/Teal for Match */
+            --text-color: #4a148c; /* Dark Purple Text */
+            --card-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            /* Added a subtle texture to the body background */
+            background-image: radial-gradient(circle, #fce4ec 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            color: var(--text-color);
+        }
+
+        .game-container {
+            background-color: #fff;
+            padding: 30px; /* Slightly larger padding */
+            border-radius: 25px; /* More rounded corners */
+            box-shadow: var(--card-shadow);
+            width: 100%;
+            max-width: 650px;
+            text-align: center;
+            border: 5px solid var(--primary-color); /* Added border for definition */
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        h3 {
+            color: #7b1fa2; /* Lighter shade of primary */
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        /* Scoreboard and Controls */
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 25px;
+            border-bottom: 3px solid var(--secondary-color); /* Colorful separator */
+        }
+
+        .stat {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .stat-value {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+        }
+
+        button {
+            background-color: var(--match-color);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.05rem;
+            font-weight: 700;
+            box-shadow: 0 5px #00838f; /* Darker teal for depth */
+            transition: all 0.1s ease;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background-color: #0097a7;
+        }
+
+        button:active {
+            box-shadow: 0 2px #00838f;
+            transform: translateY(3px);
+        }
+
+        /* Game Board */
+        .memory-game {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 15px; /* Increased gap */
+            perspective: 1000px;
+        }
+
+        /* Card Styling */
+        .card {
+            width: 100%;
+            padding-bottom: 100%;
+            position: relative;
+            transform: scale(1);
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            box-shadow: var(--card-shadow);
+            cursor: pointer;
+            border-radius: 15px; /* More rounded */
+        }
+
+        /* Card Face (Front and Back) */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem; /* Slightly larger emojis */
+            border-radius: 15px;
+        }
+
+        /* Card Back (Vibrant Gradient) */
+        .card-back {
+            background: linear-gradient(135deg, var(--card-back-color), var(--card-back-color-dark));
+            color: white;
+            border: 4px solid var(--secondary-color); /* Gold border on back */
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Added a decorative element to the card back */
+        .card-back::after {
+            content: '⭐'; 
+            position: absolute;
+            font-size: 1.2rem;
+            top: 5px;
+            right: 5px;
+            opacity: 0.7;
+        }
+
+        /* Card Front (Clean White) */
+        .card-front {
+            background-color: var(--card-front-color);
+            border: 2px solid #ddd;
+            transform: rotateY(180deg);
+        }
+
+        /* Flip Animation */
+        .card.flip {
+            transform: rotateY(180deg);
+        }
+
+        /* Matched Cards (Teal color) */
+        .card.match {
+            cursor: default;
+            animation: match-pulse 0.5s;
+            background-color: #e0f7fa; /* Light background on match */
+            border-color: var(--match-color);
+        }
+
+        @keyframes match-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 15px var(--match-color); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px var(--match-color); }
+            100% { transform: scale(1); box-shadow: var(--card-shadow); }
+        }
+
+        /* Modal for Game Over (Consistent color scheme) */
+        .modal-content {
+            background: linear-gradient(145deg, #ffffff, var(--background-color));
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            border: 3px solid var(--match-color);
+        }
+
+        .modal-content h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            text-shadow: 1px 1px var(--secondary-color);
+        }
+
+        .modal-content p {
+            color: var(--text-color);
+            font-size: 1.3rem;
+        }
+
+        .modal-content button {
+            background-color: var(--primary-color);
+            box-shadow: 0 5px #4a148c;
+        }
+
+        .modal-content button:active {
+            box-shadow: 0 2px #4a148c;
+        }
+
+        /* Responsive adjustments (Kept your original media queries) */
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 15px;
+            }
+            .memory-game {
+                grid-gap: 8px;
+            }
+            .card-face {
+                font-size: 2.5rem;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            .stat {
+                margin: 5px 0;
+            }
+            button {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>Card Match</h1>
+        <h3>Made by Estiak Ahmed</h3>
+        <div class="controls">
+            <div class="stat">Moves: <span id="moves-count" class="stat-value">0</span></div>
+            <div class="stat">Time: <span id="timer-count" class="stat-value">0s</span></div>
+            <button id="reset-button">Restart Game</button>
+        </div>
+
+        <div class="memory-game" id="game-board">
+            </div>
+    </div>
+
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+            <h2>🎉 Congratulations! 🎉</h2>
+            <p>You matched all pairs!</p>
+            <p>Total Moves: <span id="final-moves"></span></p>
+            <p>Time Taken: <span id="final-time"></span></p>
+            <button id="modal-restart-button">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Setup ---
+        const gameBoard = document.getElementById('game-board');
+        const movesCountElement = document.getElementById('moves-count');
+        const timerCountElement = document.getElementById('timer-count');
+        const resetButton = document.getElementById('reset-button');
+        const modal = document.getElementById('game-over-modal');
+        const modalRestartButton = document.getElementById('modal-restart-button');
+        const finalMovesElement = document.getElementById('final-moves');
+        const finalTimeElement = document.getElementById('final-time');
+
+        // New Card Emojis (8 unique pairs)
+        const cardEmojis = [
+            '🍕', '🚀', '💡', '👑', 
+            '🐱', '🎸', '🌈', '🌎'
+        ];
+        
+        // --- Game State Variables ---
+        let cards = [];
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let moves = 0;
+        let matches = 0;
+        let timerInterval;
+        let time = 0;
+        const totalPairs = cardEmojis.length;
+
+        // --- Audio Setup (Tone.js) ---
+        // Basic synth for card flip sound
+        const clickSynth = new Tone.MembraneSynth({
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.01 }
+        }).toDestination();
+
+        // PolySynth for match chords and victory sounds
+        const matchSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "square" },
+            envelope: { attack: 0.02, decay: 0.2, sustain: 0.1, release: 0.5 }
+        }).toDestination();
+
+        // Simple synth for no match sound
+        const nomatchSynth = new Tone.Synth({
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.01, decay: 0.15 }
+        }).toDestination();
+
+        // Ensure audio context starts on the first user interaction
+        document.body.addEventListener('click', () => {
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
+        }, { once: true });
+
+        // --- Sound Functions ---
+
+        function playFlipSound() {
+            clickSynth.triggerAttackRelease("C4", "16n");
+        }
+
+        function playMatchSound() {
+            matchSynth.triggerAttackRelease(["E5", "G5", "C6"], "8n");
+        }
+
+        function playNoMatchSound() {
+            nomatchSynth.triggerAttackRelease("G3", "8n", Tone.now(), 0.5);
+        }
+
+        function playVictorySound() {
+            const now = Tone.now();
+            matchSynth.triggerAttackRelease("C6", "8n", now);
+            matchSynth.triggerAttackRelease("E6", "8n", now + 0.15);
+            matchSynth.triggerAttackRelease("G6", "4n", now + 0.3);
+        }
+
+        // --- Utility Functions ---
+
+        // Function to shuffle an array (Fisher-Yates)
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- Core Game Logic ---
+
+        function updateMoves() {
+            movesCountElement.textContent = moves;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            time = 0;
+            timerCountElement.textContent = `${time}s`;
+            timerInterval = setInterval(() => {
+                time++;
+                timerCountElement.textContent = `${time}s`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function createCardElement(emoji) {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.emoji = emoji; // Use dataset.emoji now
+            card.innerHTML = `
+                <div class="card-face card-front">
+                    ${emoji} 
+                </div>
+                <div class="card-face card-back">
+                    ? 
+                </div>
+            `;
+            // Add click listener
+            card.addEventListener('click', flipCard);
+            return card;
+        }
+
+        function initializeGame() {
+            // 1. Reset state
+            stopTimer();
+            moves = 0;
+            matches = 0;
+            hasFlippedCard = false;
+            lockBoard = false;
+            firstCard = null;
+            secondCard = null;
+            updateMoves();
+            
+            // 2. Clear board
+            gameBoard.innerHTML = '';
+            
+            // 3. Prepare and shuffle cards
+            const shuffledEmojis = [...cardEmojis, ...cardEmojis]; // Double the emojis
+            shuffle(shuffledEmojis);
+            
+            // 4. Create card elements and append to the board
+            cards = [];
+            shuffledEmojis.forEach(emoji => {
+                const card = createCardElement(emoji);
+                cards.push(card);
+                gameBoard.appendChild(card);
+            });
+
+            // 5. Start the timer
+            startTimer();
+            
+            // 6. Hide modal
+            modal.style.display = 'none';
+        }
+
+        function flipCard() {
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            this.classList.add('flip');
+            playFlipSound();
+
+            if (!hasFlippedCard) {
+                hasFlippedCard = true;
+                firstCard = this;
+                return;
+            }
+
+            secondCard = this;
+            moves++;
+            updateMoves();
+
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            // Check dataset.emoji instead of dataset.icon
+            let isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+
+            isMatch ? disableCards() : unflipCards();
+        }
+
+        function disableCards() {
+            matches++;
+            playMatchSound();
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+            firstCard.classList.add('match', 'lock');
+            secondCard.classList.add('match', 'lock');
+            
+            resetBoard();
+
+            if (matches === totalPairs) {
+                gameOver();
+            }
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            playNoMatchSound();
+
+            setTimeout(() => {
+                firstCard.classList.remove('flip');
+                secondCard.classList.remove('flip');
+                resetBoard();
+            }, 1000);
+        }
+
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        function gameOver() {
+            stopTimer();
+            playVictorySound();
+
+            finalMovesElement.textContent = moves;
+            finalTimeElement.textContent = `${time}s`;
+            
+            modal.style.display = 'flex';
+        }
+
+        // --- Event Listeners ---
+        resetButton.addEventListener('click', initializeGame);
+        modalRestartButton.addEventListener('click', initializeGame);
+
+        // Initialize the game when the window loads
+        window.onload = initializeGame;
+
+    </script>
+</body>
+</html>
